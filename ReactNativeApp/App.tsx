@@ -5,9 +5,10 @@
  * @format
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+
 import {
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -25,94 +26,81 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+import { PlaidLink, LinkExit, LinkSuccess } from 'react-native-plaid-link-sdk';
+import { useRoot, RootProvider } from './useRootComponent';
 
-function Section({children, title}: SectionProps): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+var styles = require('./style');
 
-function App(): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const HomeScreen = () => {
+  const [linkToken, setLinkToken] = useState(null);
+  const address = Platform.OS === 'ios' ? 'localhost' : '10.0.2.2';
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+  const createLinkToken = useCallback(async () => {
+    await fetch(`http://${address}:8080/api/create_link_token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ address: address })
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setLinkToken(data.link_token);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }, [setLinkToken]);
+
+  useEffect(() => {
+    if (linkToken == null) {
+      createLinkToken();
+    }
+  }, [linkToken]);
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
+    <View style={{ flex: 1 }}>
+      <View style={styles.heading}>
+        <Text style={styles.titleText}>Tine Quickstart - React Native</Text>
+      </View>
+      <View style={styles.bottom}>
+        <PlaidLink
+          tokenConfig={{
+            token: linkToken,
+            noLoadingState: false,
+          }}
+          onSuccess={async (success: LinkSuccess) => {
+            await fetch(`http://${address}:8080/api/exchange_public_token`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ public_token: success.publicToken }),
+            })
+              .catch((err) => {
+                console.log(err);
+              });
+            // navigation.navigate('Success', success);
+          }}
+          onExit={(response: LinkExit) => {
+            console.log(response);
           }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+          <View style={styles.buttonContainer}>
+            <Text style={styles.buttonText}>Open Link</Text>
+          </View>
+        </PlaidLink>
+      </View>
+    </View>
+  )
 }
 
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+
+function App() {
+  return (
+    <RootProvider>
+      <HomeScreen />
+    </RootProvider>
+  )
+}
 
 export default App;
