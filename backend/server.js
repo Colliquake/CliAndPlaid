@@ -59,7 +59,7 @@ app.post('/api/create_link_token', async (req, res, next) => {
       android_package_name: process.env.PLAID_ANDROID_PACKAGE_NAME,
     };
   }
-  const tokenResponse = await client.linkTokenCreate(payload);
+  const tokenResponse = await client.linkTokenCreate(payload)
   res.json(tokenResponse.data);
 });
 
@@ -72,16 +72,22 @@ app.post('/api/exchange_public_token', async (req, res, next) => {
   // FOR DEMO PURPOSES ONLY
   // Store access_token in DB instead of session storage
   req.session.access_token = exchangeResponse.data.access_token;
+  // console.log('here!!!')
   res.json(true);
 });
 
 // Fetches balance data using the Node client library for Plaid
 app.post('/api/balance', async (req, res, next) => {
   const access_token = req.session.access_token;
+  // console.log('access token (already been set): ', access_token)
   const balanceResponse = await client.accountsBalanceGet({access_token});
+  const accounts = balanceResponse.data.accounts;
   res.json({
     Balance: balanceResponse.data,
+    // token_string: access_token,
+    // example_response_var: accounts,
   });
+  // console.log('HERE')
 });
 
 app.listen(port, () => {
